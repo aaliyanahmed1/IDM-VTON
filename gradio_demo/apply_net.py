@@ -15,6 +15,13 @@ from detectron2.engine.defaults import DefaultPredictor
 from detectron2.structures.instances import Instances
 from detectron2.utils.logger import setup_logger
 
+import sys
+from pathlib import Path
+# Add gradio_demo to path for densepose imports
+gradio_demo_path = Path(__file__).parent
+if str(gradio_demo_path) not in sys.path:
+    sys.path.insert(0, str(gradio_demo_path))
+
 from densepose import add_densepose_config
 from densepose.structures import DensePoseChartPredictorOutput, DensePoseEmbeddingPredictorOutput
 from densepose.utils.logger import verbosity_to_level
