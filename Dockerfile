@@ -40,11 +40,15 @@ RUN pip3 install --no-cache-dir \
 COPY api/requirements.txt /app/api/requirements.txt
 RUN pip3 install --no-cache-dir -r api/requirements.txt
 
-# Install NumPy < 2.0 FIRST (required for PyTorch 2.0.1 and onnxruntime compatibility)
-RUN pip3 install --no-cache-dir "numpy<2.0"
+# Install NumPy < 2.0 FIRST and pin it (required for PyTorch 2.0.1 and onnxruntime compatibility)
+# Use specific version to prevent upgrades
+RUN pip3 install --no-cache-dir "numpy==1.24.3" && \
+    pip3 install --upgrade --force-reinstall "numpy<2.0" --no-deps || true
 
 # Install additional ML dependencies (split into smaller chunks to save space)
+# Constrain numpy in all installs to prevent upgrades
 RUN pip3 install --no-cache-dir \
+    "numpy<2.0" \
     transformers==4.36.2 \
     diffusers==0.25.0 \
     accelerate==0.25.0 \
@@ -63,11 +67,17 @@ RUN pip3 install --no-cache-dir \
     tqdm==4.66.1 \
     && pip3 cache purge
 
-# Install basicsr separately (can be large)
-RUN pip3 install --no-cache-dir basicsr || echo "basicsr install failed, continuing..."
+# Verify numpy version is < 2.0
+RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.'), f'NumPy version {numpy.__version__} is >= 2.0!'; print(f'NumPy version OK: {numpy.__version__}')"
 
-# Install bitsandbytes separately (optional, can fail)
-RUN pip3 install --no-cache-dir bitsandbytes==0.39.0 || echo "bitsandbytes install failed, continuing..."
+# Install basicsr separately (can be large, constrain numpy)
+RUN pip3 install --no-cache-dir "numpy<2.0" basicsr || echo "basicsr install failed, continuing..."
+
+# Install bitsandbytes separately (optional, can fail, constrain numpy)
+RUN pip3 install --no-cache-dir "numpy<2.0" bitsandbytes==0.39.0 || echo "bitsandbytes install failed, continuing..."
+
+# Final numpy version check before detectron2
+RUN python3 -c "import numpy; print(f'NumPy version before detectron2: {numpy.__version__}'); assert numpy.__version__.startswith('1.'), 'NumPy must be < 2.0'"
 
 # Install detectron2 dependencies (numpy already installed above)
 RUN pip3 install --no-cache-dir \
