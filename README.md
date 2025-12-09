@@ -12,13 +12,37 @@
 
 This is the official implementation of the paper ["Improving Diffusion Models for Authentic Virtual Try-on in the Wild"](https://arxiv.org/abs/2403.05139).
 
+**Original Repository:** [yisol/IDM-VTON](https://github.com/yisol/IDM-VTON)
+
 Star ⭐ us if you like it!
 
 ---
 
+## Contributions & Changes
 
-![teaser2](assets/teaser2.png)&nbsp;
-![teaser](assets/teaser.png)&nbsp;
+This fork includes a **production-ready REST API** for integration with any platform or device:
+
+- **FastAPI Server** (`api/`) - Complete REST API compatible with all platforms (Web, Mobile, Desktop, IoT, etc.)
+- **Universal Integration** - Works with any HTTP client (JavaScript, Python, Java, C#, Go, Swift, Kotlin, and more)
+- **Base64 Image Encoding** - Returns base64-encoded images for easy display on any platform
+- **CORS Support** - Cross-origin requests enabled for web applications
+- **Performance Optimizations** - FP16 precision, model compilation, VAE slicing, optimized for 15-25s response time
+- **Production-Ready** - Comprehensive error handling, validation, health checks, logging
+- **Easy Integration** - Simple multipart form-data upload, standard HTTP REST API
+
+**Quick Start:**
+```bash
+cd api
+pip install -r requirements.txt
+python main.py
+# API available at http://localhost:8000
+# Interactive docs at http://localhost:8000/docs
+```
+
+**Platform Integration:** The API accepts `person_image` and `garment_image` files via standard HTTP POST requests and returns base64-encoded result images. Compatible with web browsers, mobile apps (iOS/Android), desktop applications, server-side applications, and any platform that supports HTTP requests. See [api/README.md](api/README.md) for integration examples across different platforms.
+
+---
+
 
 
 
@@ -160,6 +184,7 @@ or, you can simply run with the script file.
 ```
 sh inference.sh
 ```
+
 
 ## Start a local gradio demo <a href='https://github.com/gradio-app/gradio'><img src='https://img.shields.io/github/stars/gradio-app/gradio'></a>
 
