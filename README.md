@@ -41,6 +41,13 @@ python main.py
 
 **Platform Integration:** The API accepts `person_image` and `garment_image` files via standard HTTP POST requests and returns base64-encoded result images. Compatible with web browsers, mobile apps (iOS/Android), desktop applications, server-side applications, and any platform that supports HTTP requests. See [api/README.md](api/README.md) for integration examples across different platforms.
 
+**Simple Web UI:** A Streamlit-based web interface is available for easy testing:
+```bash
+cd api
+pip install -r ui_requirements.txt
+streamlit run ui_app.py
+```
+
 ---
 
 
