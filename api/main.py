@@ -12,7 +12,7 @@ from pathlib import Path
 import torch
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from PIL import Image
@@ -109,17 +109,27 @@ static_path = Path(__file__).parent / "static"
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
     """Serve UI or health check"""
     ui_file = Path(__file__).parent / "static" / "index.html"
     if ui_file.exists():
-        return FileResponse(str(ui_file))
-    return {
-        "status": "healthy",
-        "service": "IDM-VTON API",
-        "version": "1.0.0"
-    }
+        return FileResponse(
+            str(ui_file),
+            media_type="text/html",
+            headers={"Cache-Control": "no-cache"}
+        )
+    # Fallback if file doesn't exist
+    return HTMLResponse(content="""
+    <html>
+        <body>
+            <h1>IDM-VTON API</h1>
+            <p>Status: Healthy</p>
+            <p>UI file not found. Please check if api/static/index.html exists.</p>
+            <p><a href="/docs">API Documentation</a></p>
+        </body>
+    </html>
+    """)
 
 
 @app.get("/health", response_model=dict)
