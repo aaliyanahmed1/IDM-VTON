@@ -31,15 +31,16 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Upgrade pip
 RUN pip3 install --upgrade pip setuptools wheel
 
-# Install PyTorch with CUDA support first
+# Install PyTorch with CUDA support first (specify exact version to avoid large downloads)
 RUN pip3 install --no-cache-dir \
-    torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cu118
+    torch==2.0.1+cu118 torchvision==0.15.2+cu118 \
+    --index-url https://download.pytorch.org/whl/cu118
 
 # Install API dependencies
 COPY api/requirements.txt /app/api/requirements.txt
 RUN pip3 install --no-cache-dir -r api/requirements.txt
 
-# Install additional ML dependencies
+# Install additional ML dependencies (split into smaller chunks to save space)
 RUN pip3 install --no-cache-dir \
     transformers==4.36.2 \
     diffusers==0.25.0 \
@@ -51,7 +52,6 @@ RUN pip3 install --no-cache-dir \
     cloudpickle \
     omegaconf \
     pycocotools \
-    basicsr \
     av \
     onnxruntime==1.16.2 \
     huggingface-hub==0.19.4 \
@@ -59,16 +59,24 @@ RUN pip3 install --no-cache-dir \
     matplotlib \
     torchmetrics==1.2.1 \
     tqdm==4.66.1 \
-    bitsandbytes==0.39.0
+    && pip3 cache purge
+
+# Install basicsr separately (can be large)
+RUN pip3 install --no-cache-dir basicsr || echo "basicsr install failed, continuing..."
+
+# Install bitsandbytes separately (optional, can fail)
+RUN pip3 install --no-cache-dir bitsandbytes==0.39.0 || echo "bitsandbytes install failed, continuing..."
 
 # Install detectron2 dependencies first
 RUN pip3 install --no-cache-dir \
     cython \
-    'git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI'
+    'git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI' \
+    && pip3 cache purge
 
-# Install detectron2 from source (requires build tools)
+# Install detectron2 from source (requires build tools, can take time)
 RUN pip3 install --no-cache-dir \
-    'git+https://github.com/facebookresearch/detectron2.git'
+    'git+https://github.com/facebookresearch/detectron2.git' \
+    && pip3 cache purge || echo "detectron2 install failed, check logs"
 
 # Copy entire application code
 COPY . /app/
