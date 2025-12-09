@@ -132,11 +132,11 @@ async def health_check():
 async def virtual_tryon(
     person_image: UploadFile = File(..., description="Person image file"),
     garment_image: UploadFile = File(..., description="Garment image file"),
-    garment_description: Optional[str] = Field(None, description="Optional garment description"),
-    denoise_steps: int = Field(30, ge=10, le=50, description="Number of denoising steps"),
-    seed: Optional[int] = Field(None, description="Random seed for reproducibility"),
-    auto_mask: bool = Field(True, description="Automatically generate mask using pose estimation"),
-    crop_image: bool = Field(False, description="Crop image to optimal aspect ratio")
+    garment_description: Optional[str] = None,
+    denoise_steps: int = 30,
+    seed: Optional[int] = None,
+    auto_mask: bool = True,
+    crop_image: bool = False
 ):
     """
     Generate virtual try-on image
