@@ -67,11 +67,16 @@ RUN pip3 install --no-cache-dir basicsr || echo "basicsr install failed, continu
 # Install bitsandbytes separately (optional, can fail)
 RUN pip3 install --no-cache-dir bitsandbytes==0.39.0 || echo "bitsandbytes install failed, continuing..."
 
-# Install detectron2 dependencies first
+# Install detectron2 dependencies first (numpy must be installed before pycocotools)
 RUN pip3 install --no-cache-dir \
+    numpy \
     cython \
-    'git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI' \
     && pip3 cache purge
+
+# Install pycocotools (requires numpy)
+RUN pip3 install --no-cache-dir \
+    'git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI' \
+    && pip3 cache purge || echo "pycocotools install failed, continuing..."
 
 # Install detectron2 from source (requires build tools, can take time)
 RUN pip3 install --no-cache-dir \
