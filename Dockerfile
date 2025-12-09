@@ -40,6 +40,9 @@ RUN pip3 install --no-cache-dir \
 COPY api/requirements.txt /app/api/requirements.txt
 RUN pip3 install --no-cache-dir -r api/requirements.txt
 
+# Install NumPy < 2.0 FIRST (required for PyTorch 2.0.1 and onnxruntime compatibility)
+RUN pip3 install --no-cache-dir "numpy<2.0"
+
 # Install additional ML dependencies (split into smaller chunks to save space)
 RUN pip3 install --no-cache-dir \
     transformers==4.36.2 \
@@ -51,7 +54,6 @@ RUN pip3 install --no-cache-dir \
     fvcore \
     cloudpickle \
     omegaconf \
-    pycocotools \
     av \
     onnxruntime==1.16.2 \
     huggingface-hub==0.19.4 \
@@ -67,21 +69,25 @@ RUN pip3 install --no-cache-dir basicsr || echo "basicsr install failed, continu
 # Install bitsandbytes separately (optional, can fail)
 RUN pip3 install --no-cache-dir bitsandbytes==0.39.0 || echo "bitsandbytes install failed, continuing..."
 
-# Install detectron2 dependencies first (numpy must be installed before pycocotools)
+# Install detectron2 dependencies (numpy already installed above)
 RUN pip3 install --no-cache-dir \
-    numpy \
     cython \
     && pip3 cache purge
 
-# Install pycocotools (requires numpy)
+# Install pycocotools (requires numpy, which is already installed)
 RUN pip3 install --no-cache-dir \
     'git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI' \
-    && pip3 cache purge || echo "pycocotools install failed, continuing..."
+    && pip3 cache purge
 
-# Install detectron2 from source (requires build tools, can take time)
+# Install detectron2 from Facebook Research repo (builds from source, takes 5-10 minutes)
+# Using specific tag v0.6 for stability with PyTorch 2.0.1
 RUN pip3 install --no-cache-dir \
-    'git+https://github.com/facebookresearch/detectron2.git' \
-    && pip3 cache purge || echo "detectron2 install failed, check logs"
+    'git+https://github.com/facebookresearch/detectron2.git@v0.6' \
+    && pip3 cache purge
+
+# Verify detectron2 installation (fail build if not installed correctly)
+RUN python3 -c "import detectron2; print('Detectron2 installed successfully'); print(f'Version: {detectron2.__version__}')" || \
+    (echo "ERROR: Detectron2 installation failed!" && exit 1)
 
 # Copy entire application code
 COPY . /app/
