@@ -52,7 +52,11 @@ RUN pip3 install --no-cache-dir \
     av \
     onnxruntime==1.16.2 \
     huggingface-hub==0.19.4 \
-    safetensors
+    safetensors \
+    matplotlib \
+    torchmetrics==1.2.1 \
+    tqdm==4.66.1 \
+    bitsandbytes==0.39.0
 
 # Install detectron2 dependencies
 RUN pip3 install --no-cache-dir \
