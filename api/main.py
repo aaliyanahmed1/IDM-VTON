@@ -10,7 +10,7 @@ from typing import Optional
 from pathlib import Path
 
 import torch
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -132,11 +132,11 @@ async def health_check():
 async def virtual_tryon(
     person_image: UploadFile = File(..., description="Person image file"),
     garment_image: UploadFile = File(..., description="Garment image file"),
-    garment_description: Optional[str] = None,
-    denoise_steps: int = 30,
-    seed: Optional[int] = None,
-    auto_mask: bool = True,
-    crop_image: bool = False
+    garment_description: Optional[str] = Form(None),
+    denoise_steps: int = Form(30),
+    seed: Optional[int] = Form(None),
+    auto_mask: bool = Form(True),
+    crop_image: bool = Form(False)
 ):
     """
     Generate virtual try-on image
