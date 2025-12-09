@@ -12,7 +12,8 @@ from pathlib import Path
 import torch
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from PIL import Image
 import uvicorn
@@ -103,9 +104,17 @@ async def shutdown_event():
     logger.info("Service shutdown complete")
 
 
-@app.get("/", response_model=dict)
+# Serve static files (HTML UI)
+static_path = Path(__file__).parent / "static"
+if static_path.exists():
+    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
+@app.get("/")
 async def root():
-    """Health check endpoint"""
+    """Serve UI or health check"""
+    ui_file = Path(__file__).parent / "static" / "index.html"
+    if ui_file.exists():
+        return FileResponse(str(ui_file))
     return {
         "status": "healthy",
         "service": "IDM-VTON API",
