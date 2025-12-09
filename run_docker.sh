@@ -20,14 +20,43 @@ else
     echo "⚠️  GPU support may not be available, but continuing..."
 fi
 
+# Stop any existing processes on port 8000
 echo ""
-echo "Building Docker image (this may take 10-15 minutes)..."
-docker build -t idm-vton-api:latest .
+echo "Checking for processes on port 8000..."
+if lsof -ti:8000 > /dev/null 2>&1; then
+    echo "⚠️  Port 8000 is in use. Stopping existing processes..."
+    lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+    sleep 2
+fi
 
+# Stop any existing Python API processes
+echo "Stopping any existing API processes..."
+pkill -f "api.main" 2>/dev/null || true
+pkill -f "python.*main.py" 2>/dev/null || true
+sleep 2
+
+# Stop old Docker container if exists
 echo ""
-echo "Stopping old container if exists..."
+echo "Stopping old Docker container if exists..."
 docker stop idm-vton-api 2>/dev/null || true
 docker rm idm-vton-api 2>/dev/null || true
+
+# Check if we need to build
+if docker images | grep -q "idm-vton-api.*latest"; then
+    read -p "Docker image exists. Rebuild? (y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo ""
+        echo "Building Docker image (this may take 10-15 minutes)..."
+        docker build -t idm-vton-api:latest .
+    else
+        echo "Using existing image..."
+    fi
+else
+    echo ""
+    echo "Building Docker image (this may take 10-15 minutes)..."
+    docker build -t idm-vton-api:latest .
+fi
 
 echo ""
 echo "Starting new container with GPU..."
@@ -59,6 +88,7 @@ if curl -s http://localhost:8000/health > /dev/null; then
     curl -s http://localhost:8000/health | head -3
 else
     echo "⚠️  Server may still be starting. Check logs with: docker logs -f idm-vton-api"
+    echo "Wait for: 'INFO:     Application startup complete.'"
 fi
 
 echo ""
@@ -70,4 +100,3 @@ echo ""
 echo "To view logs: docker logs -f idm-vton-api"
 echo "To stop: docker stop idm-vton-api"
 echo "To restart: docker start idm-vton-api"
-
