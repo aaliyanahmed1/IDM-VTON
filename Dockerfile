@@ -91,13 +91,18 @@ RUN pip3 install --no-cache-dir \
 
 # Install detectron2 from Facebook Research repo (builds from source, takes 5-10 minutes)
 # Using specific tag v0.6 for stability with PyTorch 2.0.1
+# Constrain numpy to prevent upgrade during install
 RUN pip3 install --no-cache-dir \
+    "numpy<2.0" \
     'git+https://github.com/facebookresearch/detectron2.git@v0.6' \
     && pip3 cache purge
 
 # Verify detectron2 installation (fail build if not installed correctly)
 RUN python3 -c "import detectron2; print('Detectron2 installed successfully'); print(f'Version: {detectron2.__version__}')" || \
     (echo "ERROR: Detectron2 installation failed!" && exit 1)
+
+# Final verification: Check both numpy and detectron2 versions
+RUN python3 -c "import numpy; import detectron2; assert numpy.__version__.startswith('1.'), f'NumPy {numpy.__version__} is incompatible!'; print(f'✓ NumPy: {numpy.__version__}'); print(f'✓ Detectron2: {detectron2.__version__}')"
 
 # Copy entire application code
 COPY . /app/
