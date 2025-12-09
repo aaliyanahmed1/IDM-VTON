@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl \
     build-essential \
+    gcc \
+    g++ \
+    ninja-build \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
@@ -58,9 +61,14 @@ RUN pip3 install --no-cache-dir \
     tqdm==4.66.1 \
     bitsandbytes==0.39.0
 
-# Install detectron2 dependencies
+# Install detectron2 dependencies first
 RUN pip3 install --no-cache-dir \
-    'git+https://github.com/facebookresearch/detectron2.git' || echo "detectron2 install may need manual setup"
+    cython \
+    'git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI'
+
+# Install detectron2 from source (requires build tools)
+RUN pip3 install --no-cache-dir \
+    'git+https://github.com/facebookresearch/detectron2.git'
 
 # Copy entire application code
 COPY . /app/
