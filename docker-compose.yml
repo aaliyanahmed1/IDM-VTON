@@ -22,6 +22,7 @@ services:
     volumes:
       - ./ckpt:/app/ckpt
       - ./results:/app/results
+      - ./hf_cache:/root/.cache/huggingface  # Mount HuggingFace cache externally
     restart: unless-stopped
     stdin_open: true
     tty: true
