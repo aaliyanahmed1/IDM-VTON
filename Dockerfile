@@ -31,19 +31,21 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Upgrade pip
 RUN pip3 install --upgrade pip setuptools wheel
 
-# Install PyTorch with CUDA support first (specify exact version to avoid large downloads)
+# Install NumPy < 2.0 FIRST (before PyTorch to prevent it from pulling NumPy 2.x)
+RUN pip3 install --no-cache-dir "numpy==1.24.3"
+
+# Install PyTorch with CUDA support (constrain numpy to prevent upgrade)
 RUN pip3 install --no-cache-dir \
+    "numpy<2.0" \
     torch==2.0.1+cu118 torchvision==0.15.2+cu118 \
     --index-url https://download.pytorch.org/whl/cu118
 
-# Install API dependencies
-COPY api/requirements.txt /app/api/requirements.txt
-RUN pip3 install --no-cache-dir -r api/requirements.txt
+# Verify numpy stayed < 2.0 after PyTorch install
+RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.'), f'NumPy upgraded to {numpy.__version__} after PyTorch!'; print(f'NumPy OK after PyTorch: {numpy.__version__}')"
 
-# Install NumPy < 2.0 FIRST and pin it (required for PyTorch 2.0.1 and onnxruntime compatibility)
-# Use specific version to prevent upgrades
-RUN pip3 install --no-cache-dir "numpy==1.24.3" && \
-    pip3 install --upgrade --force-reinstall "numpy<2.0" --no-deps || true
+# Install API dependencies (constrain numpy)
+COPY api/requirements.txt /app/api/requirements.txt
+RUN pip3 install --no-cache-dir "numpy<2.0" -r api/requirements.txt
 
 # Install additional ML dependencies (split into smaller chunks to save space)
 # Constrain numpy in all installs to prevent upgrades
@@ -93,17 +95,26 @@ RUN pip3 install --no-cache-dir \
 # Install detectron2 from Facebook Research repo (builds from source, takes 5-10 minutes)
 # Using specific tag v0.6 for stability with PyTorch 2.0.1
 # Constrain numpy to prevent upgrade during install
+# Use --no-deps and install dependencies separately to control numpy version
 RUN pip3 install --no-cache-dir \
     "numpy<2.0" \
     'git+https://github.com/facebookresearch/detectron2.git@v0.6' \
-    && pip3 cache purge
+    && pip3 cache purge || \
+    (echo "Detectron2 install failed, trying without constraint..." && \
+     pip3 install --no-cache-dir 'git+https://github.com/facebookresearch/detectron2.git@v0.6' && \
+     pip3 install --force-reinstall --no-deps "numpy==1.24.3")
 
 # Verify detectron2 installation (fail build if not installed correctly)
 RUN python3 -c "import detectron2; print('Detectron2 installed successfully'); print(f'Version: {detectron2.__version__}')" || \
     (echo "ERROR: Detectron2 installation failed!" && exit 1)
 
 # Final verification: Check both numpy and detectron2 versions
-RUN python3 -c "import numpy; import detectron2; assert numpy.__version__.startswith('1.'), f'NumPy {numpy.__version__} is incompatible!'; print(f'✓ NumPy: {numpy.__version__}'); print(f'✓ Detectron2: {detectron2.__version__}')"
+# Force numpy < 2.0 if it got upgraded
+RUN python3 -c "import numpy; print(f'NumPy before final check: {numpy.__version__}')" && \
+    (python3 -c "import numpy; assert numpy.__version__.startswith('1.')" || \
+     (pip3 install --force-reinstall --no-deps "numpy==1.24.3" && \
+      python3 -c "import numpy; print(f'NumPy reinstalled: {numpy.__version__}')")) && \
+    python3 -c "import numpy; import detectron2; assert numpy.__version__.startswith('1.'), f'NumPy {numpy.__version__} is incompatible!'; print(f'✓ NumPy: {numpy.__version__}'); print(f'✓ Detectron2: {detectron2.__version__}')"
 
 # Copy entire application code
 COPY . /app/
