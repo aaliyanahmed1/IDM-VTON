@@ -58,6 +58,9 @@ else
     docker build -t idm-vton-api:latest .
 fi
 
+# Create cache directory if it doesn't exist
+mkdir -p hf_cache
+
 echo ""
 echo "Starting new container with GPU..."
 docker run -d \
@@ -66,6 +69,7 @@ docker run -d \
   -p 8000:8000 \
   -v $(pwd)/ckpt:/app/ckpt \
   -v $(pwd)/results:/app/results \
+  -v $(pwd)/hf_cache:/root/.cache/huggingface \
   --restart unless-stopped \
   idm-vton-api:latest
 
