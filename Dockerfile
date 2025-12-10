@@ -86,9 +86,8 @@ RUN pip3 install --no-cache-dir \
     cython \
     && pip3 cache purge
 
-# Install pycocotools (explicitly include numpy in build environment)
-RUN pip3 install --no-cache-dir \
-    "numpy<2.0" \
+# Install pycocotools (use --no-build-isolation so numpy is available in build env)
+RUN pip3 install --no-cache-dir --no-build-isolation \
     'git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI' \
     && pip3 cache purge
 
