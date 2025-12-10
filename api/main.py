@@ -7,6 +7,7 @@ import logging
 import base64
 import io
 from typing import Optional
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import torch
@@ -60,13 +61,39 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+# Initialize service (lazy loading)
+tryon_service: Optional[TryOnService] = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown"""
+    # Startup
+    global tryon_service
+    try:
+        logger.info("Initializing IDM-VTON service...")
+        tryon_service = TryOnService()
+        logger.info("Service initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize service: {str(e)}")
+        raise
+    
+    yield
+    
+    # Shutdown
+    if tryon_service:
+        tryon_service.cleanup()
+    logger.info("Service shutdown complete")
+
+
+# Initialize FastAPI app with lifespan
 app = FastAPI(
     title="IDM-VTON API",
     description="Production-ready Virtual Try-On API for Mobile Applications",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # CORS middleware for mobile app access
@@ -78,31 +105,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize service (lazy loading)
-tryon_service: Optional[TryOnService] = None
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize models on startup"""
-    global tryon_service
-    try:
-        logger.info("Initializing IDM-VTON service...")
-        tryon_service = TryOnService()
-        logger.info("Service initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize service: {str(e)}")
-        raise
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    global tryon_service
-    if tryon_service:
-        tryon_service.cleanup()
-    logger.info("Service shutdown complete")
-
 
 # Serve static files (HTML UI)
 static_path = Path(__file__).parent / "static"
@@ -113,18 +115,41 @@ if static_path.exists():
 async def root():
     """Serve UI or health check"""
     ui_file = Path(__file__).parent / "static" / "index.html"
+    logger.info(f"Looking for UI file at: {ui_file}")
+    logger.info(f"File exists: {ui_file.exists()}")
     if ui_file.exists():
-        return FileResponse(
-            str(ui_file),
-            media_type="text/html",
+        logger.info("Serving UI from static/index.html")
+        with open(ui_file, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(
+            content=html_content,
             headers={"Cache-Control": "no-cache"}
         )
     # Fallback if file doesn't exist
+    logger.warning("UI file not found, serving fallback")
     return HTMLResponse(content="""
     <html>
+        <head>
+            <title>IDM-VTON API</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; }
+                .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+                h1 { color: #333; }
+                a { color: #667eea; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+            </style>
+        </head>
         <body>
-            <h1>IDM-VTON API</h1>
-            <p>Status: Healthy</p>
+            <div class="container">
+                <h1>IDM-VTON API</h1>
+                <p>Status: <strong>Healthy</strong></p>
+                <p>UI file not found at: """ + str(ui_file) + """</p>
+                <p><a href="/docs">API Documentation</a></p>
+                <p><a href="/health">Health Check</a></p>
+            </div>
+        </body>
+    </html>
+    """)
             <p>UI file not found. Please check if api/static/index.html exists.</p>
             <p><a href="/docs">API Documentation</a></p>
         </body>
