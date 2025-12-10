@@ -43,15 +43,18 @@ RUN pip3 install --no-cache-dir \
 # Verify numpy stayed < 2.0 after PyTorch install
 RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.'), f'NumPy upgraded to {numpy.__version__} after PyTorch!'; print(f'NumPy OK after PyTorch: {numpy.__version__}')"
 
-# Install API dependencies (constrain numpy and downgrade Pillow for detectron2 compatibility)
+# Install Pillow 9.5.0 FIRST (before other deps, detectron2 v0.6 needs it)
+# Pillow 10.0+ removed Image.LINEAR which detectron2 v0.6 uses
+RUN pip3 install --no-cache-dir "pillow==9.5.0"
+
+# Install API dependencies (constrain numpy and ensure Pillow stays pinned)
 COPY api/requirements.txt /app/api/requirements.txt
-# Pillow 10.0+ removed Image.LINEAR, detectron2 v0.6 needs Pillow < 10.0
-RUN pip3 install --no-cache-dir "numpy<2.0" "pillow<10.0.0" -r api/requirements.txt || \
-    (pip3 install --no-cache-dir "numpy<2.0" -r api/requirements.txt && \
-     pip3 install --force-reinstall --no-deps "pillow==9.5.0")
+RUN pip3 install --no-cache-dir "numpy<2.0" -r api/requirements.txt && \
+    pip3 install --force-reinstall --no-deps "pillow==9.5.0" && \
+    python3 -c "import PIL; print(f'Pillow version: {PIL.__version__}')"
 
 # Install additional ML dependencies (split into smaller chunks to save space)
-# Constrain numpy in all installs to prevent upgrades
+# Constrain numpy and ensure Pillow stays pinned
 RUN pip3 install --no-cache-dir \
     "numpy<2.0" \
     transformers==4.36.2 \
@@ -70,7 +73,8 @@ RUN pip3 install --no-cache-dir \
     matplotlib \
     torchmetrics==1.2.1 \
     tqdm==4.66.1 \
-    && pip3 cache purge
+    && pip3 install --force-reinstall --no-deps "pillow==9.5.0" && \
+    pip3 cache purge
 
 # Verify numpy version is < 2.0
 RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.'), f'NumPy version {numpy.__version__} is >= 2.0!'; print(f'NumPy version OK: {numpy.__version__}')"
@@ -110,6 +114,19 @@ RUN python3 -c "import numpy; print(f'NumPy after detectron2: {numpy.__version__
 # Verify detectron2 installation (fail build if not installed correctly)
 RUN python3 -c "import detectron2; print('Detectron2 installed successfully'); print(f'Version: {detectron2.__version__}')" || \
     (echo "ERROR: Detectron2 installation failed!" && exit 1)
+
+# Patch detectron2 to fix Image.LINEAR compatibility issue
+# Replace Image.LINEAR with Image.BILINEAR in detectron2's transform.py
+RUN python3 -c "import detectron2; import os; transform_file = os.path.join(os.path.dirname(detectron2.__file__), 'data/transforms/transform.py'); \
+    with open(transform_file, 'r') as f: content = f.read(); \
+    content = content.replace('Image.LINEAR', 'Image.BILINEAR'); \
+    with open(transform_file, 'w') as f: f.write(content); \
+    print('Patched detectron2: Image.LINEAR -> Image.BILINEAR')" || \
+    echo "Warning: Could not patch detectron2, will try Pillow 9.5.0 compatibility"
+
+# Ensure Pillow is still 9.5.0 after all installs
+RUN pip3 install --force-reinstall --no-deps "pillow==9.5.0" && \
+    python3 -c "import PIL; assert PIL.__version__ == '9.5.0', f'Pillow version is {PIL.__version__}, expected 9.5.0'; print(f'✓ Pillow pinned to: {PIL.__version__}')"
 
 # Final verification: Check both numpy and detectron2 versions
 # Force numpy < 2.0 if it got upgraded
