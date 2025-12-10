@@ -43,9 +43,12 @@ RUN pip3 install --no-cache-dir \
 # Verify numpy stayed < 2.0 after PyTorch install
 RUN python3 -c "import numpy; assert numpy.__version__.startswith('1.'), f'NumPy upgraded to {numpy.__version__} after PyTorch!'; print(f'NumPy OK after PyTorch: {numpy.__version__}')"
 
-# Install API dependencies (constrain numpy)
+# Install API dependencies (constrain numpy and downgrade Pillow for detectron2 compatibility)
 COPY api/requirements.txt /app/api/requirements.txt
-RUN pip3 install --no-cache-dir "numpy<2.0" -r api/requirements.txt
+# Pillow 10.0+ removed Image.LINEAR, detectron2 v0.6 needs Pillow < 10.0
+RUN pip3 install --no-cache-dir "numpy<2.0" "pillow<10.0.0" -r api/requirements.txt || \
+    (pip3 install --no-cache-dir "numpy<2.0" -r api/requirements.txt && \
+     pip3 install --force-reinstall --no-deps "pillow==9.5.0")
 
 # Install additional ML dependencies (split into smaller chunks to save space)
 # Constrain numpy in all installs to prevent upgrades
